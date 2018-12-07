@@ -1,0 +1,134 @@
+---
+title: "Stats Project Part2"
+author: "ETaylor"
+date: "3 March 2017"
+output: word_document
+---
+
+## Part 2: Basic Inferential Data Analysis
+In this second part of the report some basic data analysis is performed on the data set "ToothGrowth". ToothGrowth contains data on the effect of vitamin C on tooth growth in guinea pigs. The response is the length of odontoblasts (cells responsible for tooth growth) in 60 guinea pigs. Each animal received one of three dose levels of vitamin C (0.5, 1, and 2 mg/day) by one of two delivery methods, orange juice (coded as OJ) or ascorbic acid (a form of vitamin C and coded as VC).
+
+### Exploratory data analyses
+The code below loads the ToothGrowth data
+```{r cache=TRUE}
+library(datasets)
+data(ToothGrowth)
+```
+The data set ToothGrowth contains 60 observations of 3 variables.  Below is a summary of the data followed by an extract of the top of the data set.
+```{r}
+str(ToothGrowth)
+head(ToothGrowth)
+```
+Next we can plot the data. 
+
+```{r echo=FALSE}
+library(ggplot2)
+g = ggplot(ToothGrowth, aes(x =dose, y = len, shape = supp, color = supp))
+g = g + geom_point()
+g = g + labs(title="Length of odontoblasts in 60 guinea pigs after\nreceiving doses of vitamin C by either \norange juice (OJ) or ascorbic acid (VC)", x="Dose of vitamin C (mg/day)", y=expression("Length (" * mu ~ "m)"))
+g = g+ theme(plot.title = element_text(size = 11))
+g
+
+```
+
+The plot above shows the length of odontoblasts measured for the two different supplements (OJ and VC) at each dose level given.
+
+### Summary of data
+From the exploratory analysis above the data shows that as the dose increases, there is a general increase in the length of odontoblasts for both supplements.  
+
+```{r echo=FALSE}
+g = ggplot(ToothGrowth, aes(x = supp, y = len, fill = supp))
+g = g + geom_boxplot() 
+g = g + facet_grid(. ~ dose)
+g = g + labs(title="Boxplots for each dose of vitamin C by either\norange juice (OJ) or ascorbic acid (VC)", x="Dose of vitamin C (mg/day)", y=expression("Length (" * mu ~ "m)"))
+g = g+ theme(plot.title = element_text(size = 11))
+g
+```
+
+The boxplots further illustrates the range of values as well as the median length for each supplement at the different dose levels.
+
+### Comparison of tooth growth
+In order to explore these increases further, we can use confidence intervals and/or hypothesis tests to compare tooth growth by supp and dose.
+
+####A permutation test
+Here we can compare means between the supplements. Let's calculate the distribution of our statistic under a null hypothesis that the labels for the supplements are irrelevant (exchangeable). This is a handy way to create a null distribution for our test statistic by simply permuting the labels over and over and seeing how extreme our data are with respect to this permuted distribution.
+
+First we consider the average lengths for the different supplements at a dose of 0.5mg/day. We then split that data into two vectors, one for length, the other for the supplement label.
+```{r}
+dose05 <- ToothGrowth[ToothGrowth$dose == 0.5,]
+y <- dose05$len
+group <- as.character(dose05$supp)
+```
+Next we create a function to calculate the difference in means between the two supplements. We calculate both the observed statistic (difference in means of the observed data) and a differences in means from 10000 permuted sample data sets (where the supplement labels have been randomly assigned).
+
+```{r}
+testStat <- function(w, g) mean(w[g == "OJ"]) - mean(w[g == "VC"])
+observedStat <- testStat(y, group)
+permutations <- sapply(1 : 10000, function(i) testStat(y, sample(group)))
+gthan<-mean(permutations > observedStat)
+```
+
+The observed statistic (difference in means) is calculated as `r signif(observedStat, 2)`.  At this dose level (0.5mg/day) the proportion of times the simulated statistic is larger than our observed statistic is calculated as `r gthan`.  
+
+Since this is 0, our estimate of the P-value is 0 (i.e. we strongly reject the NULL). It's useful to look at a histogram of permuted statistics with a vertical line drawn at the observed test statistic for reference.
+
+```{r echo=FALSE}
+g = ggplot(data.frame(permutations = permutations), aes(x = permutations))
+g = g + geom_histogram(color = "black", fill = "lightblue", binwidth = 1) 
+g = g + geom_vline(xintercept = observedStat, size = 2)
+g = g + labs(title = "A histogram of the difference in means for permuted sample data sets \nof dose 0.5mg/day with a vertical line at the observed difference in means", y= "frequency", x = "difference in means")
+g = g+ theme(plot.title = element_text(size = 11))
+g
+```
+
+At this dose level we can say that the supplement OJ leads to a greater length in odontoblasts than VC.  We can repeat this hypothesis at the other dose levels measured.  
+
+```{r}
+dose1 <- ToothGrowth[ToothGrowth$dose == 1,]
+dose2 <- ToothGrowth[ToothGrowth$dose == 2,]
+y1 <- dose1$len
+y2 <- dose2$len
+#1 mg/day
+observedStat1 <- testStat(y1, group)
+permutations1 <- sapply(1 : 10000, function(i) testStat(y1, sample(group)))
+gthan1<-mean(permutations1 > observedStat1)
+#2 mg/day
+observedStat2 <- testStat(y2, group)
+permutations2 <- sapply(1 : 10000, function(i) testStat(y2, sample(group)))
+gthan2<-mean(permutations2 > observedStat2)
+```
+
+        For doses at 1mg/day, the observed statistic (difference in means) is calculated as `r signif(observedStat1,2)`.  The proportion of times the simulated statistic is larger than our observed statistic is calculated as `r round(gthan1,2)`. So again we reject the NULL hypothesis, and we can say that at 1mg/day OJ appears to lead to a greater length in odontoblasts.  For doses at 2mg/day however, the difference in observed means is calculated as `r abs(signif(observedStat2, 2))`.  The proportion of times the simulated statistic is larger than our observed statistic is calculated as `r signif(gthan2,2)`. Again we illustrate this with a histogram of the differences in means for the permuted samples marking the observed difference in means with a vertical line.
+```{r echo=FALSE}
+g = ggplot(data.frame(permutations2), aes(x = permutations2))
+g = g + geom_histogram(color = "black", fill = "lightblue", binwidth = 1) 
+g = g + geom_vline(xintercept = observedStat2, size = 2)
+g = g + labs(title = "A histogram of the difference in means for permuted sample data sets\nof dose 2mg/day with a vertical line at the observed difference in means", y= "frequency", x= "difference in means")
+g = g+ theme(plot.title = element_text(size = 11))
+g
+```
+
+Here we fail to reject the NULL hypothesis.  The type of supplement given to the guinea pigs makes no difference to the length of odontoblasts.
+
+####Group t Test
+We can also test the alternative hypothesis that the true difference in means is not equal to 0 by a group t test. The data is considered unpaired, as the guinea pigs for each supplement are independent.  Here I chose to set equal variance.
+
+```{r}
+ttest05<-t.test(len ~ supp, paired = FALSE, var.equal = TRUE, data = dose05)
+ttest1<-t.test(len ~ supp, paired = FALSE, var.equal = TRUE, data = dose1)
+ttest2<-t.test(len ~ supp, paired = FALSE, var.equal = TRUE, data = dose2)
+```
+
+As with the permutation test, the 95% confidence interval for doses 0.5mg/day and 1mg/day (given below) show that the difference in means is not equal to 0.  We reject the NULL hypothesis and accept the alternative. 
+
+```{r}
+ttest05$conf.int
+ttest1$conf.int
+```
+For a dose of 2mg/day we fail to reject the NULL hypothesis. 0 falls within the 95% confidence interval (given below) and the p value is `r signif(ttest2$p.value, 2)`.
+```{r}
+ttest2$conf.int
+```
+
+### Conclusions
+As the dose levels of vitamin C increase, there is a general increase in length of odontoblasts measured for both types of supplement.  At lower dose levels of 0.5 and 1 mg/day, OJ leads to a greater average length of odontoblast measured.  For doses of 2mg/day, this difference is not observed between the two types of supplement.

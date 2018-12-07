@@ -1,0 +1,74 @@
+---
+title: "Statistical Inference Course Project"
+author: "ETaylor"
+date: "3 March 2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Overview
+This project is reported in two parts. Part 1 is a simulation excercise to investigate the exponential distribution in R and compare it with the Central Limit Theorem. Part 2 is demonstrates basic inferential data analysis by exploring the ToothGrowth data in the R datasets package.
+
+
+## Part 1: Simulation Exercise 
+The exponential distribution can be simulated in R with rexp(n, lambda) where lambda is the rate parameter. The mean of exponential distribution is 1/lambda and the standard deviation is also 1/lambda and lambda = 0.2 for all of the simulations. The distribution of averages of 40 exponentials will be investigated over 1000 simulations.
+
+```{r}
+lambda<-0.2
+n<-40
+mn_rexp<-NULL
+for (i in 1:1000) mn_rexp<-c(mn_rexp, mean(rexp(n,lambda)))
+```
+
+### Sample Mean versus Theoretical Mean
+The theoretical mean is 5 (as given by 1/lambda). The histogram illustrates the distibution of averages of 40 exponentials and highlights the sample mean with a vertical line. It is `r signif(mean(mn_rexp),3)`, which is very close to the theoretical mean.  
+
+For a large sample distribution of sample means of a collection of iid observations, this is what we would expect. The law of large numbers tells us that the average converges to what it is estimating, the population (or theoretical) mean.
+
+```{r echo=FALSE}
+#plotting distribution
+library("ggplot2")
+g = ggplot(data.frame(mn_rexp), aes(x = mn_rexp))
+g = g + geom_histogram(color = "black", fill = "lightblue", binwidth = 0.2) 
+g = g + geom_vline(xintercept = mean(mn_rexp), size = 2)
+g= g+ xlab("Means of 40 exponentials") + ylab("Count")  + ggtitle("Distribution of averages of exponentials")
+g
+```
+
+
+###Sample Variance versus Theoretical Variance
+The theoretical or population variance is the square of the standard deviation divided by n (in this case, the no. of exponentials), which comes to `r (1/lambda)^2/n`.
+The sample variance is calculated as the square of its standard deviation divided by the number of simulations, as shown in the code below:
+
+```{r}
+for (i in 1:1000)  sum_dif = sum((mn_rexp-mean(mn_rexp))^2)
+var<-sum_dif/999
+#or
+var(mn_rexp)
+
+vardif<-(abs( (1/lambda)^2/n - var(mn_rexp))/(1/lambda)^2/n )*100
+```
+The percentage difference between the sample variance and theoretical variance is `r signif(vardif,1)`, which is very small, so the variances almost the same.  The sample variance is centered around the population variance (in unbiased data) and becomes more concentrated around the population variance the more simulations (or samples) concidered.
+
+###Distribution
+The following density histogram compares the distribution of sample means (density plot in black) with the actual normal distribution (red).  
+
+```{r echo=FALSE}
+#plotting distribution
+library("ggplot2")
+#subtracting the mean - centering plot around zero
+#rexp_0<-NULL
+#for (i in 1:1000)  rexp_0 = mn_rexp-mean(mn_rexp)
+
+df_rexp<-data.frame(mn_rexp)
+g = ggplot(df_rexp, aes(x = mn_rexp))
+g = g + geom_histogram(aes(y= ..density..),color = "black", fill = "lightblue", binwidth = 0.2) 
+g = g + geom_density( size = 1, color = "black")
+g = g + stat_function(fun = dnorm, args = list( mean=5, sd=(1/lambda/sqrt(n))), size =1, color = "red")
+g = g + labs(title="Density distribution of means ", x="Means of each 40 expontentials", y="Density")
+g
+```
+
+It can be seen that the distribution of sample means is approximately normal.  This is again expected from the Central Limit Theorem (CLT), which states that the distribution of averages of iid variables becomes that of a standard normal as the sample size increases.  We would therefore expect our simulated results to continue to converge with a normal distribution as the number of simulations increased.
